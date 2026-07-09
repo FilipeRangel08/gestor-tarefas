@@ -281,9 +281,15 @@ Status é **derivado automaticamente** dos passos:
 
 ---
 
-## 14. Integração com IA **[DEFINIDO — desligada por padrão]**
+## 14. Integração com IA **[IMPLEMENTADO — desligada por padrão]**
 
-Dois pontos de IA: (a) sugerir passos, (b) sugerir notas do questionário de criticidade.
+Três pontos de IA: (a) sugerir passos, (b) sugerir notas do questionário de criticidade, (c) **gerar relatório da atividade** (resumo profissional em Markdown, com botão de copiar).
+
+**Como está implementado:**
+- Tela **Configurações** (`/config`): liga/desliga a IA, guarda a chave de API da Anthropic (só local), escolhe o modelo, e tem **"Testar conexão"** (valida se a rede da empresa libera a API — teste análogo ao de persistência).
+- Modelo padrão **`claude-opus-4-8`**, com opção de trocar por **Sonnet 5** ou **Haiku 4.5** (mais baratos) — a escolha é do usuário.
+- Chamadas via `@anthropic-ai/sdk` direto do navegador (`dangerouslyAllowBrowser`), isoladas em `lib/ia.ts` (o `IAService`). Sugestões usam **saída estruturada** (JSON schema) → populam o formulário como rascunho editável.
+- Erros traduzidos; timeout ~30s; se a rede/proxy bloquear, a feature fica indisponível sem quebrar o resto.
 
 **Política corporativa incerta sobre dados saindo da empresa → IA vem DESLIGADA por padrão.** O app é totalmente utilizável sem ela; a IA é um "plus" opcional que o usuário liga manualmente nas Configurações, ciente de que isso envia título/descrição da atividade para um serviço externo.
 
