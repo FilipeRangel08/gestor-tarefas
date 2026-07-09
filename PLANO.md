@@ -135,10 +135,10 @@ Lista única (sem categorias/projetos, mantendo simples).
 
 ---
 
-## 8. Fluxograma dos Passos
+## 8. Fluxograma dos Passos **[IMPLEMENTADO]**
 
-- **Fase 1 (agora):** lista numerada com setas indicando dependência
-- **Fase 2 (depois):** diagrama visual real (caixinhas conectadas), reaproveitando o campo `dependeDe` já existente na estrutura de dados — não vai exigir refazer o modelo
+- **Fase 1:** lista numerada com trava/indicação de dependência (na tela de Detalhe). ✅
+- **Fase 2:** **diagrama visual real** — `components/Fluxograma.tsx` desenha caixinhas conectadas por setas a partir do campo `dependeDe`. Layout topológico em camadas (nível = maior caminho de dependência), linhas centralizadas, SVG puro (sem biblioteca). Caixas coloridas por status (concluído/bloqueado/pendente), com legenda e rolagem horizontal. Aparece como seção recolhível "Fluxograma" na tela de Detalhe. ✅
 
 ---
 
