@@ -1,7 +1,9 @@
 // Fluxograma dos passos (§8, Fase 2). Diagrama SVG em camadas montado a partir
 // do campo `dependeDe`: cada passo vira uma caixa, cada dependência vira uma seta.
-// Sem biblioteca externa — layout topológico simples (o grafo é acíclico, §4).
+// Passos com observação ganham um marcador 📝; passar o mouse (ou clicar, que
+// fixa) revela a anotação num cartão. Sem biblioteca externa.
 
+import { useState } from 'react'
 import { podeConcluirPasso } from '../../domain/rules'
 import type { Passo } from '../../domain/types'
 
@@ -10,6 +12,8 @@ const ALTURA = 58
 const GAP_X = 32
 const GAP_Y = 56
 const PAD = 6
+const POP_W = 220
+const POP_H = 96
 
 /** Nível (camada) de cada passo = maior caminho de dependência até ele. */
 function calcularNiveis(passos: Passo[]): Map<string, number> {
@@ -34,12 +38,15 @@ function calcularNiveis(passos: Passo[]): Map<string, number> {
 }
 
 export function Fluxograma({ passos }: { passos: Passo[] }) {
+  // hover e clique-fixado da observação (o fixado tem prioridade).
+  const [sobre, setSobre] = useState<string | null>(null)
+  const [fixada, setFixada] = useState<string | null>(null)
+
   if (passos.length === 0) return null
 
   const niveis = calcularNiveis(passos)
   const maxNivel = Math.max(0, ...passos.map((p) => niveis.get(p.id)!))
 
-  // Agrupa por nível e ordena cada linha pela ordem do passo.
   const porNivel: Passo[][] = Array.from({ length: maxNivel + 1 }, () => [])
   passos.forEach((p) => porNivel[niveis.get(p.id)!].push(p))
   porNivel.forEach((linha) => linha.sort((a, b) => a.ordem - b.ordem))
@@ -48,20 +55,27 @@ export function Fluxograma({ passos }: { passos: Passo[] }) {
   const larguraTotal = maxLargura * (LARGURA + GAP_X) - GAP_X
   const alturaTotal = (maxNivel + 1) * (ALTURA + GAP_Y) - GAP_Y
 
-  // Posição (canto superior esquerdo) de cada caixa, com as linhas centralizadas.
+  // Canvas com largura mínima do popover; conteúdo centralizado.
+  const temObs = passos.some((p) => p.observacao.trim())
+  const offsetX = Math.max(0, (POP_W - larguraTotal) / 2)
+  const svgLargura = Math.max(larguraTotal, POP_W) + PAD * 2
+  const svgAltura = alturaTotal + PAD * 2 + (temObs ? POP_H + 12 : 0)
+
   const pos = new Map<string, { x: number; y: number }>()
   porNivel.forEach((linha, i) => {
     const larguraLinha = linha.length * (LARGURA + GAP_X) - GAP_X
     const inicioX = (larguraTotal - larguraLinha) / 2
     linha.forEach((p, j) => {
-      pos.set(p.id, { x: PAD + inicioX + j * (LARGURA + GAP_X), y: PAD + i * (ALTURA + GAP_Y) })
+      pos.set(p.id, {
+        x: PAD + offsetX + inicioX + j * (LARGURA + GAP_X),
+        y: PAD + i * (ALTURA + GAP_Y),
+      })
     })
   })
 
-  const svgLargura = larguraTotal + PAD * 2
-  const svgAltura = alturaTotal + PAD * 2
-
   const ordemDe = new Map(passos.map((p) => [p.id, p.ordem]))
+  const visivelId = fixada ?? sobre
+  const passoVisivel = visivelId ? passos.find((p) => p.id === visivelId) : undefined
 
   return (
     <div>
@@ -88,7 +102,7 @@ export function Fluxograma({ passos }: { passos: Passo[] }) {
             </marker>
           </defs>
 
-          {/* Setas (dependência -> passo), desenhadas antes das caixas. */}
+          {/* Setas (dependência -> passo). */}
           {passos.map((p) => {
             if (!p.dependeDe || !pos.has(p.dependeDe)) return null
             const dep = pos.get(p.dependeDe)!
@@ -114,6 +128,7 @@ export function Fluxograma({ passos }: { passos: Passo[] }) {
           {passos.map((p) => {
             const { x, y } = pos.get(p.id)!
             const bloqueado = !p.concluido && !podeConcluirPasso(p.id, passos)
+            const temNota = p.observacao.trim().length > 0
             const estilo = p.concluido
               ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
               : bloqueado
@@ -127,8 +142,21 @@ export function Fluxograma({ passos }: { passos: Passo[] }) {
               <foreignObject key={`box-${p.id}`} x={x} y={y} width={LARGURA} height={ALTURA}>
                 <div
                   title={dica}
-                  className={`flex h-full flex-col justify-center overflow-hidden rounded-lg border-2 px-2.5 py-1 ${estilo}`}
+                  onMouseEnter={temNota ? () => setSobre(p.id) : undefined}
+                  onMouseLeave={temNota ? () => setSobre((s) => (s === p.id ? null : s)) : undefined}
+                  onClick={temNota ? () => setFixada((f) => (f === p.id ? null : p.id)) : undefined}
+                  className={`relative flex h-full flex-col justify-center overflow-hidden rounded-lg border-2 px-2.5 py-1 ${estilo} ${
+                    temNota ? 'cursor-pointer' : ''
+                  }`}
                 >
+                  {temNota && (
+                    <span
+                      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] shadow ring-1 ring-slate-200"
+                      aria-label="Tem observação"
+                    >
+                      📝
+                    </span>
+                  )}
                   <span className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
                     Passo {p.ordem}
                     {marca}
@@ -138,6 +166,42 @@ export function Fluxograma({ passos }: { passos: Passo[] }) {
               </foreignObject>
             )
           })}
+
+          {/* Cartão da observação (revelado sob demanda). */}
+          {passoVisivel &&
+            (() => {
+              const box = pos.get(passoVisivel.id)!
+              const centro = box.x + LARGURA / 2
+              const px = Math.min(Math.max(centro - POP_W / 2, PAD), svgLargura - PAD - POP_W)
+              const py = box.y + ALTURA + 8
+              return (
+                <foreignObject x={px} y={py} width={POP_W} height={POP_H}>
+                  <div
+                    onMouseEnter={() => setSobre(passoVisivel.id)}
+                    onMouseLeave={() => setSobre((s) => (s === passoVisivel.id ? null : s))}
+                    className="flex h-full flex-col rounded-lg border border-slate-200 bg-white p-2.5 shadow-lg"
+                  >
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        📝 Passo {passoVisivel.ordem} — observação
+                      </span>
+                      {fixada === passoVisivel.id && (
+                        <button
+                          onClick={() => setFixada(null)}
+                          className="text-xs text-slate-400 hover:text-slate-600"
+                          aria-label="Fechar"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    <p className="overflow-y-auto text-xs leading-snug text-slate-700">
+                      {passoVisivel.observacao}
+                    </p>
+                  </div>
+                </foreignObject>
+              )
+            })()}
         </svg>
       </div>
 
@@ -145,6 +209,7 @@ export function Fluxograma({ passos }: { passos: Passo[] }) {
         <Legenda cor="bg-emerald-400" rotulo="Concluído" />
         <Legenda cor="bg-amber-300" rotulo="Bloqueado (aguarda dependência)" />
         <Legenda cor="bg-slate-300" rotulo="Pendente" />
+        {temObs && <span className="text-slate-400">📝 tem observação (passe o mouse ou clique)</span>}
       </div>
     </div>
   )
