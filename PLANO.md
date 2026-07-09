@@ -334,7 +334,38 @@ Três pontos de IA: (a) sugerir passos, (b) sugerir notas do questionário de cr
 7. Criticidade (manual + questionário) — sem IA ainda
 8. Histórico com filtros
 9. Exportação/Importação JSON (contrato da seção 11)
-10. Integração com IA (opcional, desligada por padrão) — por último
-11. Fase 2 (futuro): fluxograma visual dos passos; e, se a empresa liberar, `SupabaseRepository` para sync entre PCs
+10. Integração com IA (opcional, desligada por padrão) — por último ✅ (multi-provedor: Anthropic/OpenAI/Gemini)
+11. Fluxograma visual dos passos ✅ (com observação revelável)
+12. **Painel de Indicadores + gráficos (§17)** — próximo
+13. Futuro: `SupabaseRepository` para sync entre PCs, se a empresa liberar
 
 > **Nota de risco:** o passo 1 valida cedo a hipótese mais importante — que o GitHub Pages abre e a File System Access API funciona nesse PC. Se algo aí não passar, ajustamos a estratégia (ex.: single-file HTML + Export/Import manual) antes de investir no resto.
+
+---
+
+## 17. Painel de Indicadores + Gráficos **[PLANEJADO — próximo]**
+
+⭐ Tela **"Indicadores"** (nova rota `/indicadores`) com números e gráficos simples — **SVG puro, sem biblioteca** (mantendo o padrão do fluxograma e o bundle leve). Alimenta direto a **apresentação na empresa** (objetivo nº 1).
+
+**Fonte de dados:** `store.atividades` + `store.historico` (os registros de transição para "Concluída" já têm timestamp `em`, então "concluídas na semana/mês" sai do histórico).
+
+**Cards de números (KPIs):**
+- Concluídas na **semana** (últimos 7 dias) e no **mês** (últimos 30 dias) — contar registros de histórico com `para === 'Concluída'` e `em` dentro da janela.
+- **Taxa de conclusão** = concluídas / total de atividades (%).
+- **Atrasadas** — contagem atual (`estaAtrasada`).
+- Total de atividades e **pendentes** (não concluídas).
+
+**Gráficos (SVG):**
+- **Distribuição por status** (Não iniciada / Em andamento / Concluída) — donut ou barras.
+- **Contagem por criticidade** — barras coloridas (verde/amarelo/laranja/vermelho, reaproveitar `ESTILO_CRITICIDADE`).
+- **Tempo gasto por criticidade** — barras (soma de `tempoTotalMin` agrupada por criticidade).
+- **Conclusões ao longo do tempo** — barras por dia/semana (do histórico), últimos ~30 dias.
+
+**Componentes reutilizáveis:** um `CardKPI` e primitivas de gráfico (`BarChart`, `Donut`) em SVG, para reaproveitar. Colocar helpers de agregação puros em `domain/` (testáveis, como as regras atuais).
+
+**Observações:**
+- Filtro de período (semana/mês/tudo) no topo, reaproveitando a lógica do Histórico.
+- Empty state quando não há dados.
+- Este painel é o "print" natural pra levar à reunião; o relatório `.docx` (§11) continua sendo o documento formal.
+
+*(Adicionar como passo 12 da §16; construir na próxima sessão.)*
