@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
+import { useConfig } from '../../lib/config'
+import { gerarRelatorio, mensagemErro } from '../../lib/ia'
 import { criarPasso } from '../../domain/factory'
 import {
   deriveStatus,
@@ -26,6 +28,15 @@ export function DetalheAtividadePage() {
   const [novoPasso, setNovoPasso] = useState('')
   const ativRef = useRef<Atividade | null>(null)
   ativRef.current = ativ
+
+  const iaAtivada = useConfig((s) => s.iaAtivada)
+  const [relatorio, setRelatorio] = useState<{
+    aberto: boolean
+    carregando: boolean
+    texto: string
+    erro: string | null
+    copiado: boolean
+  }>({ aberto: false, carregando: false, texto: '', erro: null, copiado: false })
 
   // Carrega do store; preserva edições locais quando a mesma atividade
   // é re-emitida após um salvamento.
@@ -86,6 +97,25 @@ export function DetalheAtividadePage() {
     navigate('/')
   }
 
+  async function gerarRelatorioIA() {
+    setRelatorio({ aberto: true, carregando: true, texto: '', erro: null, copiado: false })
+    try {
+      const texto = await gerarRelatorio(atividade)
+      setRelatorio({ aberto: true, carregando: false, texto, erro: null, copiado: false })
+    } catch (e) {
+      setRelatorio({ aberto: true, carregando: false, texto: '', erro: mensagemErro(e), copiado: false })
+    }
+  }
+
+  async function copiarRelatorio() {
+    try {
+      await navigator.clipboard.writeText(relatorio.texto)
+      setRelatorio((r) => ({ ...r, copiado: true }))
+    } catch {
+      // Clipboard bloqueado — o texto continua selecionável na tela.
+    }
+  }
+
   const status = deriveStatus(atividade)
   const atrasada = estaAtrasada(atividade, hojeISO())
   const semPassos = atividade.passos.length === 0
@@ -136,6 +166,14 @@ export function DetalheAtividadePage() {
           >
             Excluir
           </button>
+          {iaAtivada && (
+            <button
+              onClick={gerarRelatorioIA}
+              className="ml-auto rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700"
+            >
+              ✨ Gerar relatório com IA
+            </button>
+          )}
         </div>
       </div>
 
@@ -244,6 +282,47 @@ export function DetalheAtividadePage() {
           Adicionar passo
         </button>
       </div>
+
+      {relatorio.aberto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setRelatorio((r) => ({ ...r, aberto: false }))}
+        >
+          <div
+            className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+              <h2 className="font-semibold text-slate-900">Relatório da atividade</h2>
+              <div className="flex gap-2">
+                {relatorio.texto && (
+                  <button
+                    onClick={copiarRelatorio}
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  >
+                    {relatorio.copiado ? '✓ Copiado' : 'Copiar'}
+                  </button>
+                )}
+                <button
+                  onClick={() => setRelatorio((r) => ({ ...r, aberto: false }))}
+                  className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+            <div className="overflow-y-auto px-5 py-4">
+              {relatorio.carregando && <p className="text-slate-500">Gerando relatório…</p>}
+              {relatorio.erro && <p className="text-sm text-red-600">✕ {relatorio.erro}</p>}
+              {relatorio.texto && (
+                <pre className="whitespace-pre-wrap break-words font-sans text-sm text-slate-700">
+                  {relatorio.texto}
+                </pre>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

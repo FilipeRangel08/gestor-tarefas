@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
+import { useConfig } from '../../lib/config'
+import { mensagemErro, sugerirNotas, sugerirPassos } from '../../lib/ia'
 import { criarPasso } from '../../domain/factory'
 import { classificarCriticidade, temCicloDependencias } from '../../domain/rules'
 import type {
@@ -34,6 +36,51 @@ export function AtividadeFormPage() {
   const [passos, setPassos] = useState<Passo[]>([])
   const [novoPasso, setNovoPasso] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+
+  const iaAtivada = useConfig((s) => s.iaAtivada)
+  const [iaCarregando, setIaCarregando] = useState<'passos' | 'notas' | null>(null)
+  const [iaErro, setIaErro] = useState<string | null>(null)
+
+  async function sugerirPassosIA() {
+    if (!titulo.trim()) {
+      setIaErro('Informe um título antes de pedir sugestões.')
+      return
+    }
+    setIaErro(null)
+    setIaCarregando('passos')
+    try {
+      const sugeridos = await sugerirPassos(titulo, descricao)
+      const base = passos.length
+      const criados = sugeridos.map((s, i) => criarPasso(s.texto, base + i + 1))
+      sugeridos.forEach((s, i) => {
+        const alvo = s.dependeDeOrdem - 1
+        if (alvo >= 0 && alvo < criados.length && alvo !== i) {
+          criados[i].dependeDe = criados[alvo].id
+        }
+      })
+      setPassos((atual) => [...atual, ...criados])
+    } catch (e) {
+      setIaErro(mensagemErro(e))
+    } finally {
+      setIaCarregando(null)
+    }
+  }
+
+  async function sugerirNotasIA() {
+    if (!titulo.trim()) {
+      setIaErro('Informe um título antes de pedir sugestões.')
+      return
+    }
+    setIaErro(null)
+    setIaCarregando('notas')
+    try {
+      setNotas(await sugerirNotas(titulo, descricao))
+    } catch (e) {
+      setIaErro(mensagemErro(e))
+    } finally {
+      setIaCarregando(null)
+    }
+  }
 
   // Carrega dados ao editar (quando a atividade estiver disponível no store).
   useEffect(() => {
@@ -122,6 +169,11 @@ export function AtividadeFormPage() {
           {erro}
         </div>
       )}
+      {iaErro && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          {iaErro}
+        </div>
+      )}
 
       <div className="space-y-5 rounded-xl border border-slate-200 bg-white p-6">
         <Campo rotulo="Título *">
@@ -203,11 +255,31 @@ export function AtividadeFormPage() {
                   <CriticidadeBadge criticidade={criticidade} />
                 </span>
               </p>
+              {iaAtivada && (
+                <button
+                  type="button"
+                  onClick={sugerirNotasIA}
+                  disabled={iaCarregando !== null}
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+                >
+                  {iaCarregando === 'notas' ? 'Sugerindo…' : '✨ Sugerir notas com IA'}
+                </button>
+              )}
             </div>
           )}
         </Campo>
 
         <Campo rotulo="Passos">
+          {iaAtivada && (
+            <button
+              type="button"
+              onClick={sugerirPassosIA}
+              disabled={iaCarregando !== null}
+              className="mb-3 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+            >
+              {iaCarregando === 'passos' ? 'Sugerindo…' : '✨ Sugerir passos com IA'}
+            </button>
+          )}
           {passos.length === 0 && (
             <p className="mb-2 text-sm text-slate-400">Nenhum passo ainda.</p>
           )}

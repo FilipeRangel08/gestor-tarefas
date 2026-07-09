@@ -7,6 +7,7 @@ import { AtividadeFormPage } from './ui/pages/AtividadeFormPage'
 import { DetalheAtividadePage } from './ui/pages/DetalheAtividadePage'
 import { HistoricoPage } from './ui/pages/HistoricoPage'
 import { DiagnosticoPage } from './ui/pages/DiagnosticoPage'
+import { ConfigPage } from './ui/pages/ConfigPage'
 
 export default function App() {
   const carregar = useStore((s) => s.carregar)
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="atividade/:id" element={<DetalheAtividadePage />} />
         <Route path="atividade/:id/editar" element={<AtividadeFormPage />} />
         <Route path="historico" element={<HistoricoPage />} />
+        <Route path="config" element={<ConfigPage />} />
         <Route path="diagnostico" element={<DiagnosticoPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
