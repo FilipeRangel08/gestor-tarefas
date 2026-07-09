@@ -6,20 +6,59 @@ import {
 
 export function DiagnosticoPage() {
   const [diag, setDiag] = useState<DiagnosticoPersistencia | null>(null)
+  const [copiado, setCopiado] = useState(false)
+  const [falhouCopia, setFalhouCopia] = useState(false)
 
   useEffect(() => {
     diagnosticarPersistencia().then(setDiag)
   }, [])
 
+  async function copiar() {
+    if (!diag) return
+    const texto = montarResumo(diag)
+    try {
+      await navigator.clipboard.writeText(texto)
+      setCopiado(true)
+      setFalhouCopia(false)
+      setTimeout(() => setCopiado(false), 2500)
+    } catch {
+      // Clipboard pode estar bloqueado por política; mostra o texto para
+      // seleção manual.
+      setFalhouCopia(true)
+    }
+  }
+
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="text-xl font-bold text-slate-900">Diagnóstico de ambiente</h1>
-        <p className="text-slate-500">
-          Abra esta página no PC da empresa para descobrir como o app conseguirá
-          salvar seus dados.
-        </p>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Diagnóstico de ambiente</h1>
+          <p className="text-slate-500">
+            Abra esta página no PC da empresa para descobrir como o app conseguirá
+            salvar seus dados.
+          </p>
+        </div>
+        {diag && (
+          <button
+            onClick={copiar}
+            className="shrink-0 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+          >
+            {copiado ? '✓ Copiado!' : 'Copiar diagnóstico'}
+          </button>
+        )}
       </header>
+
+      {falhouCopia && diag && (
+        <div className="mb-6">
+          <p className="mb-1 text-sm text-slate-500">
+            Não consegui copiar automaticamente. Selecione o texto abaixo e copie
+            (Ctrl+C):
+          </p>
+          <pre className="overflow-x-auto rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700">
+            {montarResumo(diag)}
+          </pre>
+        </div>
+      )}
 
       {!diag ? (
         <p className="text-slate-500">Verificando ambiente…</p>
@@ -84,6 +123,29 @@ export function DiagnosticoPage() {
       )}
     </div>
   )
+}
+
+/** Monta um resumo em texto plano do diagnóstico, para colar de volta. */
+function montarResumo(diag: DiagnosticoPersistencia): string {
+  const linhas = [
+    'Gestor de Tarefas — Diagnóstico de ambiente',
+    `Camada ativa: ${diag.camadaAtiva.nome}`,
+    '',
+    'Camadas testadas:',
+    ...diag.camadas.map((c) => `  [${c.disponivel ? 'x' : ' '}] ${c.nome}`),
+    '',
+    `Protocolo: ${diag.contexto.protocolo}`,
+    `Armazenamento persistente: ${
+      diag.contexto.armazenamentoPersistente === null
+        ? 'desconhecido'
+        : diag.contexto.armazenamentoPersistente
+          ? 'concedido'
+          : 'não concedido'
+    }`,
+    `crossOriginIsolated: ${diag.contexto.crossOriginIsolated}`,
+    `Navegador: ${diag.contexto.navegador}`,
+  ]
+  return linhas.join('\n')
 }
 
 function Info({ rotulo, valor, quebra }: { rotulo: string; valor: string; quebra?: boolean }) {
