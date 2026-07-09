@@ -15,6 +15,7 @@ import { formatarDuracao, formatarPrazo, hojeISO } from '../../lib/datas'
 import type { Atividade, Passo } from '../../domain/types'
 import { CriticidadeBadge } from '../components/CriticidadeBadge'
 import { BarraProgresso } from '../components/BarraProgresso'
+import { Fluxograma } from '../components/Fluxograma'
 
 export function DetalheAtividadePage() {
   const { id } = useParams()
@@ -29,6 +30,7 @@ export function DetalheAtividadePage() {
   const ativRef = useRef<Atividade | null>(null)
   ativRef.current = ativ
 
+  const [mostrarFluxo, setMostrarFluxo] = useState(true)
   const iaAtivada = useConfig((s) => s.iaAtivada)
   const [relatorio, setRelatorio] = useState<{
     aberto: boolean
@@ -176,6 +178,19 @@ export function DetalheAtividadePage() {
           )}
         </div>
       </div>
+
+      {!semPassos && (
+        <section className="mb-6">
+          <button
+            onClick={() => setMostrarFluxo((v) => !v)}
+            className="mb-3 flex items-center gap-1 text-sm font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-600"
+          >
+            <span className={`transition-transform ${mostrarFluxo ? 'rotate-90' : ''}`}>▸</span>
+            Fluxograma
+          </button>
+          {mostrarFluxo && <Fluxograma passos={atividade.passos} />}
+        </section>
+      )}
 
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
         Passos
